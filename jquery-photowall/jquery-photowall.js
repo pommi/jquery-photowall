@@ -104,7 +104,6 @@ var PhotoWall = {
 	_el: null,
 	_c_width: 0,
 	_c_height: 0,
-	_first_big: null,
 	_zoom_trigger: null,
 	_zs: null,
 	_zoom_timeout: null,
@@ -118,7 +117,6 @@ var PhotoWall = {
         lineMaxHeight:150
         ,lineMaxHeightDynamic: false
         ,baseScreenHeight: 600
-		,isFirstBig: false              // Not implemented  
         ,firstBigWidthPercent: 0.41
         ,padding:10
         ,zoomAction:'mouseenter'
@@ -209,19 +207,13 @@ var PhotoWall = {
 		    totalWidth = PhotoWall._last_line[1];
 		}
         
-        var addImage = function(id,padding,w,h,big,th,cw,ch) {
-            var img_pos = '';
-            var crop = '';
-            if(cw && ch) {
-                img_pos = 'position:absolute;left:-'+Math.round((w-cw)/2)+'px;top:-'+Math.round((h-ch)/2)+'px;'
-                crop = 'pw-crop';
-            } 
-            var t = $('<div id="'+id+'" class="pw-photo '+crop+' clearfix" style="'
+        var addImage = function(id,padding,w,h,big,th) {
+            var t = $('<div id="'+id+'" class="pw-photo clearfix" style="'
                 +'margin:'+padding+'px;'
                 +'width:'+w+'px;height:'+h+'px;float:left;'
                 +'"><a class="pw-link" href="'+big
                 +'"><img class="pw-zoom" src="'+th+'" '
-                +'width="'+w+'" height="'+h+'" style="'+img_pos+'" /></a></div>'
+                +'width="'+w+'" height="'+h+'" /></a></div>'
 	        );
 			if($.browser.msie) {
 				t.find('img').hide().load(function(){$(this).fadeIn(300);});
@@ -236,12 +228,11 @@ var PhotoWall = {
         /*
             Create line of images and add it to container body.
         */
-		var showLine = function(line,total_width,last,first) {
+		var showLine = function(line,total_width,last) {
 		    var ln = $("<div class='pw-line' style='width:"+(total_width+num_photos*PhotoWall.options.padding*2)+"'></div>")
                      .appendTo(PhotoWall._el);
-			var num_photos = line.length;		
-            var space = (first)?(PhotoWall._c_width*PhotoWall.options.firstBigWidthPercent+PhotoWall.options.padding*2):0;			
-			var hCoef = (PhotoWall._c_width-space-num_photos*PhotoWall.options.padding*2) / total_width;
+		    var num_photos = line.length;
+			var hCoef = (PhotoWall._c_width-num_photos*PhotoWall.options.padding*2) / total_width;
 			if(last)
 				var hCoef = 1;
             var l = 0;
@@ -253,7 +244,7 @@ var PhotoWall = {
                 // function it can be different in few pixels.
                 l += w;
                 if(!last && k == (num_photos-1)) {
-                    w += (PhotoWall._c_width-space-num_photos*PhotoWall.options.padding*2)-l;
+                    w += (PhotoWall._c_width-num_photos*PhotoWall.options.padding*2)-l;
                 }
                 
 				t = addImage(line[k].id,PhotoWall.options.padding,w,h,line[k].img,line[k].th.src); 
@@ -264,10 +255,8 @@ var PhotoWall = {
 
         var lines = 0;
 		var firstLineHeight = PhotoWall.options.padding*2;
-		var first = true;
         for(var i in imgArray) {	
 			var space = 0;
-		    var first_space = false;
 		    var e = null;
 		    //PhotoWall.options.lineMaxHeight = PhotoWall._line_max_height;
 		    
@@ -278,25 +267,13 @@ var PhotoWall = {
 				imgArray[i]['th'].width  = Math.floor(imgArray[i]['th'].width * fact);
 				imgArray[i]['th'].height = PhotoWall.options.lineMaxHeight;
 		    }
-			if(PhotoWall.options.isFirstBig && first) {
-			    PhotoWall._first_big = imgArray[i];
-		        first = false;
-		        continue;
-		    }
-			
-			if(lines < 2 && PhotoWall.options.isFirstBig) {
-			    var h = PhotoWall._first_big.th.height;
-			    //PhotoWall.options.lineMaxHeight = (Math.round(h/2) < PhotoWall._line_max_height)?Math.round(h/2):PhotoWall._line_max_height;
-                first_space = true;
-                space       = PhotoWall._c_width*PhotoWall.options.firstBigWidthPercent;  
-            }
 			
 			line.push(imgArray[i]);
 			totalWidth += imgArray[i].th.width;
 
 			if(totalWidth >= (PhotoWall._c_width - space)) 
 			{
-			    var ln = showLine(line,totalWidth,0,first_space);
+			    var ln = showLine(line,totalWidth,0);
                 if(lines < 2)
 					firstLineHeight += ln.height();
 				PhotoWall._last_line = [line,totalWidth,ln];
@@ -305,29 +282,9 @@ var PhotoWall = {
                 lines++;
 			}
 		}
-	    if(PhotoWall.options.isFirstBig) {
-            var im = PhotoWall._first_big;
-            var fact = PhotoWall._c_width*PhotoWall.options.firstBigWidthPercent/imgArray[i].width;
-            var w = im.width * fact;
-            var h = im.height * fact;
-			im.th.width = w;
-			im.th.height = h;
-			im.th.src = im.img;
-			im.th.zoom_src = im.img;
-			PhotoWall._first_big = addImage(
-				im.id,
-				PhotoWall.options.padding,
-				w,
-				h,
-				im.img,
-				im.img
-			).prependTo(PhotoWall._el);
-        }
         
 		if(line) {
-			if(lines < 2 && PhotoWall.options.isFirstBig)
-                first_space = true;
-		    var ln = showLine(line,totalWidth,1,first_space);
+		    var ln = showLine(line,totalWidth,1);
 		    PhotoWall._last_line = [line,totalWidth,ln];
 		}
         // Hack: Fix line width if scroll bar not present.

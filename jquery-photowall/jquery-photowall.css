@@ -5,10 +5,6 @@ div.pw-line {
     float:left;
     overflow:hidden;
 }
-div.pw-crop {
-    position: relative;
-    overflow: hidden;
-}
 div.pw-photo a {
 	text-decoration: none;
 	outline: none;
