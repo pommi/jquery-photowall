@@ -207,10 +207,15 @@ var PhotoWall = {
 		    totalWidth = PhotoWall._last_line[1];
 		}
         
-        var addImage = function(id,padding,w,h,big,th) {
-            var t = $('<div id="'+id+'" class="pw-photo clearfix" style="'
+        var addImage = function(id,padding,w,h,big,th,top_row,right,left,bottom_row) {
+			var classes = '';
+			classes += top_row?' top':'';
+			classes += left?' left':'';
+			classes += right?' right':'';
+			classes += bottom_row?' bottom':'';
+            var t = $('<div id="'+id+'" class="pw-photo clearfix'+classes+'" style="'
                 +'margin:'+padding+'px;'
-                +'width:'+w+'px;height:'+h+'px;float:left;'
+                +'width:'+w+'px;height:'+h+'px;'
                 +'"><a class="pw-link" href="'+big
                 +'"><img class="pw-zoom" src="'+th+'" '
                 +'width="'+w+'" height="'+h+'" /></a></div>'
@@ -228,7 +233,7 @@ var PhotoWall = {
         /*
             Create line of images and add it to container body.
         */
-		var showLine = function(line,total_width,last) {
+		var showLine = function(line,total_width,last,linenumber) {
 		    var num_photos = line.length;
 		    var ln = $("<div class='pw-line' style='width:"+(total_width+num_photos*PhotoWall.options.padding*2)+"'></div>")
                      .appendTo(PhotoWall._el);
@@ -246,8 +251,9 @@ var PhotoWall = {
                 if(!last && k == (num_photos-1)) {
                     w += (PhotoWall._c_width-num_photos*PhotoWall.options.padding*2)-l;
                 }
-                
-				t = addImage(line[k].id,PhotoWall.options.padding,w,h,line[k].img,line[k].th.src); 
+
+				t = addImage(line[k].id,PhotoWall.options.padding,w,h,line[k].img,line[k].th.src,
+				             linenumber==0,(k == (num_photos-1)),k==0,last);
 				ln.append(t);
 			}
 			return t;
@@ -273,7 +279,7 @@ var PhotoWall = {
 
 			if(totalWidth >= (PhotoWall._c_width - space)) 
 			{
-			    var ln = showLine(line,totalWidth,0);
+			    var ln = showLine(line,totalWidth,0,lines);
                 if(lines < 2)
 					firstLineHeight += ln.height();
 				PhotoWall._last_line = [line,totalWidth,ln];
@@ -284,7 +290,7 @@ var PhotoWall = {
 		}
         
 		if(line) {
-		    var ln = showLine(line,totalWidth,1);
+		    var ln = showLine(line,totalWidth,1,lines);
 		    PhotoWall._last_line = [line,totalWidth,ln];
 		}
         // Hack: Fix line width if scroll bar not present.
@@ -301,8 +307,6 @@ var PhotoWall = {
 	    Initialize GUI.
 	*/
 	initGUI: function() {
-		if(PhotoWall.options.zoom)
-		    PhotoWall.initZoom();
 		if(PhotoWall.options.showBox)
 		    PhotoWall.initShowBox();
 	},
@@ -344,101 +348,6 @@ var PhotoWall = {
 		if(PhotoWall.options.showBoxSocial) 
 			PhotoWall._init_socials();
 	},
-	/*
-	    Initialize image zoom.
-	*/
-	initZoom: function() {
-		$(".pw-zoom").on(PhotoWall.options.zoomAction,function (){
-			var img = $(this);
-			if(!parseInt(img.css('opacity'))) return;
-							
-			img.stop().addClass('pw-photo-hover');
-			// Make images to zoom only after some time to prevent zoom on mouse move.
-			PhotoWall._zoom_timeout = setTimeout(function(){
-				img.removeClass('pw-photo-hover');				
-				img.addClass('pw-photo-zoomed');
-				if(PhotoWall._zoom_timeout) {
-					PhotoWall._zs = [img.width(),img.height()];
-					var container  = img.parent().parent();
-					var item   = PhotoWall._photos[container.attr('id')];
-					// Preload zoomed image and replace old only when it loaded.
-					var bigIMG = $('<img/>');
-					bigIMG.attr('src',item.th.zoom_src);
-					bigIMG.load(function(){ 
-						img.attr('src',$(this).attr('src'));
-						$(this).remove();
-					});		
-                    // calculating zoom image size
-					var w  = Math.round(img.width()*item.th.zoom_factor);
-					var h  = Math.round(img.height()*item.th.zoom_factor);
-					// calculating diff size
-					var dw = w - img.width();
-					var dh = h - img.height();
-					// calculating left and top margin
-					var l  = -(dw) * 0.5-PhotoWall.options.zoomImageBorder;
-					var t  = -(dh) * 0.5-PhotoWall.options.zoomImageBorder;
-					
-					var o  = container.offset(); 
-					var wn = $(window);
-					var winFact = 1;
-					// Prevent image to expand out of visible part of window 
-					if(o.left + l + w > (wn.width()+wn.scrollLeft()))
-						l -= (o.left + l + w) - (wn.width()+wn.scrollLeft())+PhotoWall.options.zoomImageBorder*2; 
-					
-					if(o.left + l < wn.scrollLeft())
-						l -= (o.left + l)-wn.scrollLeft();
-					
-					if(o.top + t + h > (wn.height()+wn.scrollTop()))
-						t -= (o.top + t + h) - (wn.height()+wn.scrollTop())+PhotoWall.options.zoomImageBorder*2; 
-					
-					if(o.top + t < wn.scrollTop())
-						t -= (o.top + t)-wn.scrollTop();
-		            // END
-		            // Prevent image from being bigger then visible part of window
-		            if(w+PhotoWall.options.zoomImageBorder*2 > wn.width()) 
-		                winFact *= (wn.width()-PhotoWall.options.zoomImageBorder*2)/(w+PhotoWall.options.zoomImageBorder*2);
-		                
-		            if((h*winFact+PhotoWall.options.zoomImageBorder*2) > wn.height()) 
-		                winFact *= (wn.height()-PhotoWall.options.zoomImageBorder*2)/(h*winFact+PhotoWall.options.zoomImageBorder*2);
-		            // END
-		            
-		            // Zooming
-					img.animate({
-						"margin-left": 	l,
-						"margin-top": 	t,
-						"width": 		Math.round(w*winFact),
-						"height": 		Math.round(h*winFact),
-						"padding": 		PhotoWall.options.zoomImageBorder
-					}, {
-						queue: 		false,
-						duration: 	PhotoWall.options.zoomDuration,
-						easing: 	'linear'
-					});
-				}
-			},PhotoWall.options.zoomTimeout);
-		});
-		$(".pw-zoom").on('mouseleave',function(){
-			var img = $(this);
-			var container  = img.parent().parent();
-			var item   = PhotoWall._photos[container.attr('id')];
-			if (PhotoWall._zoom_timeout) {
-					clearTimeout(PhotoWall._zoom_timeout)
-					PhotoWall._zoom_timeout = null;
-			}
-			img.removeClass('pw-photo-hover');
-			if(img.hasClass('pw-photo-zoomed')) {
-				img.stop().css({
-					"margin":  '',
-					"padding": '',
-			        "width":		PhotoWall._zs[0] + 'px',
-			        "height": 		PhotoWall._zs[1] + 'px'
-		
-				});
-				PhotoWall._zs = null;
-				img.removeClass('pw-photo-zoomed');
-			}
-		});
-	}
 }
 /*
 	ShowBox - Fullscreen image viewer that overlay on the current page.
