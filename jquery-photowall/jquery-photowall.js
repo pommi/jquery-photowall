@@ -217,17 +217,9 @@ var PhotoWall = {
                 +'margin:'+padding+'px;'
                 +'width:'+w+'px;height:'+h+'px;'
                 +'"><a class="pw-link" href="'+big
-                +'"><img class="pw-zoom" src="'+th+'" '
+                +'"><img class="pw-zoom" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="'+th+'" '
                 +'width="'+w+'" height="'+h+'" /></a></div>'
 	        );
-			if($.browser.msie) {
-				t.find('img').hide().load(function(){$(this).fadeIn(300);});
-			} else {
-				t.find('img').css('opacity',0).load(function(){
-			        $(this).delay(Math.random()*(1000 - 300)+300)
-			               .animate({"opacity":1},{duration:1000});
-                });
-			}
 			return t;
         }
         /*
@@ -406,7 +398,7 @@ var ShowBox = {
         var lc  = ShowBox._images.length-1;
         $(el).each(function(){
             var t   = $(this);
-            ShowBox._images[lc].push([t.attr('href'),t.find('img').attr('src')]);
+            ShowBox._images[lc].push([t.attr('href'),t.find('img').attr('data-src')]);
             ShowBox._addThumb(lc,ShowBox._images[lc][i][1],i);
             i++;
         });
@@ -501,7 +493,7 @@ var ShowBox = {
         });
     },
     _addThumb: function(gal,im,i) {
-    	$('<div class="showbox-th"><img src="'+im+'" /></div>')
+       $('<div class="showbox-th"><img class="showbox-thumb" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-src="'+im+'" /></div>')
         .appendTo('#showbox-thc'+gal+' .showbox-th-container').find('img').load(function(){
             var w = $(this).width();
             var h = $(this).height();
@@ -604,7 +596,7 @@ var ShowBox = {
         }
     },
     OPENPREVIEW: function(el){
-        $(el).animate({bottom:0},{queue: false,duration:150});
+        $(el).animate({bottom:0},{queue: false,duration:150,complete:ShowBox.UNVEIL()});
     },
     CLOSEPREVIEW: function(el){
         $(el).animate({bottom:-75},{queue: false,duration:150});
@@ -669,6 +661,74 @@ var ShowBox = {
         var thL = Math.round(cW/2) - (ShowBox._index * 64 + 30);
         $('#showbox .showbox-th-container').animate({
             left:  thL
-        },{duration:300,queue:false});	
+        },{duration:300,queue:false,complete:ShowBox.UNVEIL()});
+	},
+	UNVEIL: function(){
+		setTimeout(function(){
+			$("img.showbox-thumb").unveil(200);
+		}, 1000);
 	}
 }
+
+/**
+ * jQuery Unveil
+ * A very lightweight jQuery plugin to lazy load images
+ * http://luis-almeida.github.com/unveil
+ *
+ * Licensed under the MIT license.
+ * Copyright 2013 Luís Almeida
+ * https://github.com/luis-almeida
+ */
+
+;(function($) {
+
+  $.fn.unveil = function(threshold, callback) {
+
+    var $w = $(window),
+        th = threshold || 0,
+        retina = window.devicePixelRatio > 1,
+        attrib = retina? "data-src-retina" : "data-src",
+        images = this,
+        loaded;
+
+    this.one("unveil", function() {
+      var source = this.getAttribute(attrib);
+      source = source || this.getAttribute("data-src");
+      if (source) {
+        this.setAttribute("src", source);
+        this.removeAttribute(attrib, source);
+        if (typeof callback === "function") callback.call(this);
+      }
+    });
+
+    function unveil() {
+      var inview = images.filter(function() {
+        var $e = $(this);
+        if ($e.is(":hidden")) return;
+
+        var wt = $w.scrollTop(),
+            wb = wt + $w.height(),
+            et = $e.offset().top,
+            eb = et + $e.height(),
+            wl = $w.scrollLeft(),
+            ww = wt + $w.width(),
+            el = $e.offset().left,
+            ew = et + $e.width();
+
+        return eb >= wt - th && et <= wb + th
+			&& ew >= wl - th && el <= ww + th;
+      });
+
+      loaded = inview.trigger("unveil");
+      images = images.not(loaded);
+    }
+
+    $w.on("scroll.unveil resize.unveil lookup.unveil", unveil);
+
+    unveil();
+
+    return this;
+
+  };
+
+})(window.jQuery || window.Zepto);
