@@ -294,6 +294,13 @@ var PhotoWall = {
 		    PhotoWall._inited = true;
 		    PhotoWall.initGUI();
 		}			
+
+		$("img.pw-zoom").unveil(200, function() {
+			$(this).load(function() {
+				$(this).delay(Math.random()*(1000 - 300)+300)
+					.animate({"opacity":1},{duration:1000});
+			});
+		});
 	},
 	/*
 	    Initialize GUI.
